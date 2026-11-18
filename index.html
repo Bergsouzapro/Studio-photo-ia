@@ -1,0 +1,409 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#101827">
+<title>Studio Foto IA</title>
+
+<style>
+:root {
+  --bg: #f4f6fa;
+  --dark: #101827;
+  --blue: #2447a5;
+  --text: #202b3c;
+  --muted: #718096;
+  --border: #e4e8ef;
+  --white: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+}
+
+header {
+  background: var(--dark);
+  color: white;
+  padding: 24px 20px 30px;
+  border-radius: 0 0 22px 22px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  width: 45px;
+  height: 45px;
+  border-radius: 13px;
+  background: #294b9c;
+  display: grid;
+  place-items: center;
+  font-size: 25px;
+}
+
+.brand h1 {
+  font-size: 19px;
+  margin: 0;
+}
+
+.brand small {
+  color: #b8c5dc;
+}
+
+.welcome {
+  margin-top: 28px;
+}
+
+.welcome h2 {
+  font-size: 25px;
+  margin: 0 0 9px;
+}
+
+.welcome p {
+  color: #c2cde0;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+main {
+  padding: 20px 16px 40px;
+  max-width: 850px;
+  margin: auto;
+}
+
+.section-title {
+  font-size: 17px;
+  margin: 8px 0 14px;
+}
+
+.modules {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 11px;
+}
+
+.module {
+  border: 1px solid var(--border);
+  background: white;
+  border-radius: 15px;
+  padding: 17px 13px;
+  min-height: 125px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+}
+
+.module:active {
+  transform: scale(.98);
+}
+
+.module .emoji {
+  font-size: 27px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.module strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.module small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.module.active {
+  border: 2px solid var(--blue);
+  background: #f0f4ff;
+}
+
+.card {
+  background: white;
+  padding: 18px;
+  margin-top: 20px;
+  border-radius: 17px;
+  border: 1px solid var(--border);
+}
+
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.card p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+textarea {
+  width: 100%;
+  min-height: 125px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  outline-color: var(--blue);
+}
+
+.upload {
+  display: block;
+  border: 1px dashed #9ba9c1;
+  border-radius: 12px;
+  padding: 17px;
+  margin-top: 12px;
+  text-align: center;
+  color: var(--blue);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.upload input { display: none; }
+
+#preview {
+  display: none;
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  margin-top: 12px;
+  border-radius: 12px;
+  background: #edf0f5;
+}
+
+button.primary {
+  width: 100%;
+  padding: 15px;
+  background: var(--blue);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  margin-top: 15px;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #eef2f8;
+  color: var(--dark);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.notice {
+  display: none;
+  margin-top: 13px;
+  padding: 13px;
+  border-radius: 10px;
+  background: #eef4ff;
+  color: #2447a5;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 25px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">📷</div>
+    <div>
+      <h1>STUDIO FOTO IA</h1>
+      <small>Seu laboratório criativo</small>
+    </div>
+  </div>
+
+  <div class="welcome">
+    <h2>Sua ideia. Nossa direção criativa.</h2>
+    <p>Crie prompts fotográficos profissionais com inteligência artificial.</p>
+  </div>
+</header>
+
+<main>
+
+  <h3 class="section-title">Escolha seu trabalho</h3>
+
+  <div class="modules">
+
+    <button class="module active" data-module="fotografia">
+      <span class="emoji">📸</span>
+      <strong>Criar fotografia</strong>
+      <small>Transforme ideias em prompts profissionais.</small>
+    </button>
+
+    <button class="module" data-module="referencia">
+      <span class="emoji">🖼️</span>
+      <strong>Analisar referência</strong>
+      <small>Analise cenário, pose, roupa e iluminação.</small>
+    </button>
+
+    <button class="module" data-module="laboratorio">
+      <span class="emoji">✨</span>
+      <strong>Transformar fotografia</strong>
+      <small>Melhorar fotos pessoais e sugerir alterações.</small>
+    </button>
+
+    <button class="module" data-module="social">
+      <span class="emoji">📱</span>
+      <strong>Redes sociais</strong>
+      <small>Instagram, Stories e WhatsApp.</small>
+    </button>
+
+    <button class="module" data-module="identidade">
+      <span class="emoji">👤</span>
+      <strong>Minha identidade</strong>
+      <small>Referências para preservar sua aparência.</small>
+    </button>
+
+    <button class="module" data-module="biblioteca">
+      <span class="emoji">📚</span>
+      <strong>Biblioteca</strong>
+      <small>Seus prompts e projetos salvos.</small>
+    </button>
+
+  </div>
+
+  <section class="card">
+    <h3 id="formTitle">Criar fotografia</h3>
+    <p id="formDescription">
+      Descreva a fotografia que deseja criar.
+      A inteligência artificial preparará um prompt detalhado.
+    </p>
+
+    <textarea id="idea"
+      placeholder="Ex.: Quero uma fotografia minha sentado em uma praia do Marajó, com iluminação natural, aparência espontânea e realista..."></textarea>
+
+    <label class="upload">
+      📎 Anexar fotografia de referência
+      <input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp">
+    </label>
+
+    <img id="preview" alt="Prévia da fotografia selecionada">
+
+    <button class="primary" id="createBtn">
+      Preparar meu prompt
+    </button>
+
+    <div class="notice" id="notice">
+      Interface inicial pronta! A conexão com a inteligência artificial será implementada na próxima etapa.
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  STUDIO FOTO IA · Direção criativa e engenharia de prompts
+</footer>
+
+<script>
+const modules = {
+  fotografia: {
+    title: "Criar fotografia",
+    description: "Descreva sua ideia. Vamos transformá-la em um prompt fotográfico profissional."
+  },
+  referencia: {
+    title: "Analisar referência",
+    description: "Anexe uma fotografia para analisar cenário, pose, vestuário, iluminação e composição."
+  },
+  laboratorio: {
+    title: "Laboratório de transformação",
+    description: "Envie uma fotografia pessoal. O assistente sugerirá melhorias, priorizando a naturalidade e a preservação da imagem original."
+  },
+  social: {
+    title: "Redes sociais",
+    description: "Descreva sua publicação para Instagram, Stories, WhatsApp ou publicidade comercial."
+  },
+  identidade: {
+    title: "Minha identidade",
+    description: "Prepare referências e instruções para preservar sua aparência nas futuras criações."
+  },
+  biblioteca: {
+    title: "Biblioteca de prompts",
+    description: "Em breve, você poderá consultar seus projetos e prompts salvos na nuvem."
+  }
+};
+
+let selectedModule = "fotografia";
+
+document.querySelectorAll(".module").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll(".module").forEach(item => {
+      item.classList.remove("active");
+    });
+
+    button.classList.add("active");
+    selectedModule = button.dataset.module;
+
+    document.getElementById("formTitle").textContent =
+      modules[selectedModule].title;
+
+    document.getElementById("formDescription").textContent =
+      modules[selectedModule].description;
+
+    document.getElementById("notice").style.display = "none";
+  });
+});
+
+document.getElementById("imageInput").addEventListener("change", event => {
+  const file = event.target.files[0];
+  const preview = document.getElementById("preview");
+
+  if (!file) return;
+
+  if (file.size > 10 * 1024 * 1024) {
+    alert("A imagem deve ter no máximo 10 MB.");
+    event.target.value = "";
+    return;
+  }
+
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    alert("Formato não permitido. Utilize JPG, PNG ou WEBP.");
+    event.target.value = "";
+    return;
+  }
+
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = "block";
+});
+
+document.getElementById("createBtn").addEventListener("click", () => {
+  const idea = document.getElementById("idea").value.trim();
+
+  if (!idea && !document.getElementById("imageInput").files.length) {
+    alert("Descreva sua ideia ou anexe uma fotografia.");
+    return;
+  }
+
+  document.getElementById("notice").textContent =
+    "Sua solicitação foi preparada na interface. Na próxima etapa conectaremos a IA para analisar sua ideia e elaborar o prompt profissional. Nenhuma imagem será gerada aqui.";
+
+  document.getElementById("notice").style.display = "block";
+});
+</script>
+
+</body>
+</html>
