@@ -1,0 +1,288 @@
+
+require("dotenv").config();
+
+const express = require("express");
+const cors = require("cors");
+const OpenAI = require("openai");
+
+const app = express();
+
+const PORT = process.env.PORT || 3000;
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+if (!process.env.OPENAI_API_KEY) {
+  console.error("OPENAI_API_KEY não configurada.");
+  process.exit(1);
+}
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.error("Configurações do Supabase ausentes.");
+  process.exit(1);
+}
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+app.use(cors({
+  origin: [
+    FRONTEND_ORIGIN,
+    "http://localhost:3000"
+  ].filter(Boolean)
+}));
+
+app.use(express.json({ limit: "15mb" }));
+
+// Limite simples de solicitações por IP
+const requests = new Map();
+
+app.use((req, res, next) => {
+  if (!req.path.startsWith("/api/")) return next();
+
+  const ip = req.ip;
+  const now = Date.now();
+  const record = requests.get(ip);
+
+  if (!record || now - record.time > 60000) {
+    requests.set(ip, { time: now, count: 1 });
+    return next();
+  }
+
+  record.count++;
+
+  if (record.count > 15) {
+    return res.status(429).json({
+      error: "Limite temporário de solicitações atingido."
+    });
+  }
+
+  next();
+});
+
+// Verificar usuário autenticado no Supabase
+async function authenticate(req, res, next) {
+  try {
+    const authorization = req.headers.authorization || "";
+    const token = authorization.replace(/^Bearer\s+/i, "");
+
+    if (!token || token === authorization) {
+      return res.status(401).json({
+        error: "Autenticação necessária."
+      });
+    }
+
+    const response = await fetch(
+      `${SUPABASE_URL}/auth/v1/user`,
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      return res.status(401).json({
+        error: "Sessão inválida ou expirada."
+      });
+    }
+
+    req.user = await response.json();
+    next();
+
+  } catch (error) {
+    console.error("Erro de autenticação:", error.message);
+
+    res.status(500).json({
+      error: "Não foi possível verificar a autenticação."
+    });
+  }
+}
+
+// Verificar funcionamento do servidor
+app.get("/health", (req, res) => {
+  res.json({
+    status: "online",
+    application: "Studio Foto IA",
+    version: "1.0.0"
+  });
+});
+
+// Preparar prompts fotográficos
+app.post("/api/generate-prompt", authenticate, async (req, res) => {
+  try {
+    const {
+      idea,
+      module,
+      style,
+      format
+    } = req.body;
+
+    if (!idea || typeof idea !== "string" || idea.length > 5000) {
+      return res.status(400).json({
+        error: "Informe uma ideia válida, com até 5000 caracteres."
+      });
+    }
+
+    const response = await openai.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5.5",
+
+      instructions: `
+Você é o diretor criativo do Studio Foto IA.
+
+Sua especialidade é fotografia realista,
+direção fotográfica e engenharia de prompts.
+
+Crie prompts detalhados, modernos e profissionais.
+
+PRIORIDADES:
+- Aparência de fotografia verdadeira.
+- Texturas naturais de pele.
+- Iluminação fisicamente plausível.
+- Cores naturais e equilibradas.
+- Evitar aparência artificial de inteligência artificial.
+- Evitar pele excessivamente lisa.
+- Evitar nitidez exagerada.
+- Preservar identidade e características físicas.
+
+Nunca invente características pessoais não informadas.
+
+Responda em português brasileiro.
+
+Entregue:
+1. Conceito fotográfico.
+2. Direção de cenário e composição.
+3. Iluminação.
+4. Enquadramento e câmera.
+5. Prompt final completo.
+6. Recomendações de uso.
+
+Não gere imagens. Produza somente texto.
+      `,
+
+      input: `
+Módulo: ${module || "fotografia"}
+Estilo: ${style || "a definir"}
+Formato: ${format || "a definir"}
+
+IDEIA DO USUÁRIO:
+${idea}
+      `
+    });
+
+    res.json({
+      success: true,
+      prompt: response.output_text
+    });
+
+  } catch (error) {
+    console.error("Erro OpenAI:", error.message);
+
+    res.status(500).json({
+      error: "Não foi possível preparar o prompt."
+    });
+  }
+});
+
+// Analisar fotografias de referência
+app.post("/api/analyze-image", authenticate, async (req, res) => {
+  try {
+    const {
+      image,
+      module,
+      objective
+    } = req.body;
+
+    if (
+      typeof image !== "string" ||
+      !/^data:image\/(jpeg|png|webp);base64,/i.test(image)
+    ) {
+      return res.status(400).json({
+        error: "Fotografia inválida. Utilize JPG, PNG ou WEBP."
+      });
+    }
+
+    if (image.length > 14 * 1024 * 1024) {
+      return res.status(413).json({
+        error: "Fotografia muito grande. Reduza o tamanho."
+      });
+    }
+
+    const response = await openai.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5.5",
+
+      instructions: `
+Você é um diretor de fotografia especializado
+em análise visual e fotografia realista.
+
+Analise a fotografia enviada.
+
+Observe:
+- Cenário e ambiente.
+- Pose e postura.
+- Vestuário.
+- Iluminação.
+- Enquadramento.
+- Composição.
+- Qualidade técnica.
+- Oportunidades de melhoria.
+
+Se for uma fotografia pessoal, priorize
+a preservação da identidade e da aparência real.
+
+Não afirme características que não possam
+ser observadas na imagem.
+
+Apresente sugestões práticas e específicas.
+
+Prepare um prompt profissional para o objetivo
+solicitado.
+
+Não gere imagens. Responda somente com texto.
+      `,
+
+      input: [{
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: `
+Módulo: ${module || "análise de referência"}
+
+Objetivo: ${objective || "Analisar e sugerir melhorias."}
+
+Analise a fotografia e apresente três possibilidades
+de melhoria, priorizando a naturalidade.
+Prepare também o melhor prompt recomendado.
+            `
+          },
+          {
+            type: "input_image",
+            image_url: image,
+            detail: "high"
+          }
+        ]
+      }]
+    });
+
+    res.json({
+      success: true,
+      analysis: response.output_text
+    });
+
+  } catch (error) {
+    console.error("Erro na análise:", error.message);
+
+    res.status(500).json({
+      error: "Não foi possível analisar a fotografia."
+    });
+  }
+});
+
+// Inicialização
+app.listen(PORT, () => {
+  console.log(`Studio Foto IA ativo na porta ${PORT}`);
+});
+         
