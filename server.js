@@ -4,6 +4,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const OpenAI = require("openai");
+const { toFile } = require("openai");
 
 const app = express();
 
@@ -26,6 +27,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+// CORS
 app.use(cors({
   origin: [
     FRONTEND_ORIGIN,
@@ -33,9 +35,10 @@ app.use(cors({
   ].filter(Boolean)
 }));
 
+// Receber imagens em Base64
 app.use(express.json({ limit: "15mb" }));
 
-// Limite simples de solicitações por IP
+// Limite de solicitações por IP
 const requests = new Map();
 
 app.use((req, res, next) => {
@@ -61,7 +64,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Verificar usuário autenticado no Supabase
+// Autenticação Supabase
 async function authenticate(req, res, next) {
   try {
     const authorization = req.headers.authorization || "";
@@ -95,22 +98,22 @@ async function authenticate(req, res, next) {
   } catch (error) {
     console.error("Erro de autenticação:", error.message);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Não foi possível verificar a autenticação."
     });
   }
 }
 
-// Verificar funcionamento do servidor
+// Verificar funcionamento
 app.get("/health", (req, res) => {
   res.json({
     status: "online",
     application: "Studio Foto IA",
-    version: "1.0.0"
+    version: "1.1.0"
   });
 });
 
-// Preparar prompts fotográficos
+// Gerar prompt fotográfico
 app.post("/api/generate-prompt", authenticate, async (req, res) => {
   try {
     const {
@@ -120,7 +123,11 @@ app.post("/api/generate-prompt", authenticate, async (req, res) => {
       format
     } = req.body;
 
-    if (!idea || typeof idea !== "string" || idea.length > 5000) {
+    if (
+      typeof idea !== "string" ||
+      !idea.trim() ||
+      idea.length > 5000
+    ) {
       return res.status(400).json({
         error: "Informe uma ideia válida, com até 5000 caracteres."
       });
@@ -172,21 +179,21 @@ ${idea}
       `
     });
 
-    res.json({
+    return res.json({
       success: true,
       prompt: response.output_text
     });
 
   } catch (error) {
-    console.error("Erro OpenAI:", error.message);
+    console.error("Erro ao gerar prompt:", error.message);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Não foi possível preparar o prompt."
     });
   }
 });
 
-// Analisar fotografias de referência
+// Analisar fotografia
 app.post("/api/analyze-image", authenticate, async (req, res) => {
   try {
     const {
@@ -204,7 +211,7 @@ app.post("/api/analyze-image", authenticate, async (req, res) => {
       });
     }
 
-    if (image.length > 14 * 1024 * 1024) {
+    if (image.length > 12 * 1024 * 1024) {
       return res.status(413).json({
         error: "Fotografia muito grande. Reduza o tamanho."
       });
@@ -267,7 +274,7 @@ Prepare também o melhor prompt recomendado.
       }]
     });
 
-    res.json({
+    return res.json({
       success: true,
       analysis: response.output_text
     });
@@ -275,14 +282,113 @@ Prepare também o melhor prompt recomendado.
   } catch (error) {
     console.error("Erro na análise:", error.message);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Não foi possível analisar a fotografia."
     });
   }
 });
 
-// Inicialização
+// EDITAR FOTOGRAFIA COM IA
+app.post("/api/edit-image", authenticate, async (req, res) => {
+  try {
+    const { image, prompt } = req.body;
+
+    if (
+      typeof image !== "string" ||
+      !/^data:image\/(jpeg|png|webp);base64,/i.test(image)
+    ) {
+      return res.status(400).json({
+        error: "Envie uma fotografia JPG, PNG ou WEBP válida."
+      });
+    }
+
+    if (image.length > 12 * 1024 * 1024) {
+      return res.status(413).json({
+        error: "Fotografia muito grande. Reduza o tamanho."
+      });
+    }
+
+    if (
+      typeof prompt !== "string" ||
+      !prompt.trim() ||
+      prompt.length > 12000
+    ) {
+      return res.status(400).json({
+        error: "Informe as instruções de edição."
+      });
+    }
+
+    // Identificar formato da imagem
+    const match = image.match(
+      /^data:(image\/(?:jpeg|png|webp));base64,/i
+    );
+
+    const mime = match[1];
+
+    const extension =
+      mime === "image/jpeg" ? "jpg" :
+      mime === "image/webp" ? "webp" : "png";
+
+    // Converter Base64 em arquivo
+    const base64 = image.replace(
+      /^data:image\/(?:jpeg|png|webp);base64,/i,
+      ""
+    );
+
+    const imageBuffer = Buffer.from(base64, "base64");
+
+    const imageFile = await toFile(
+      imageBuffer,
+      `fotografia.${extension}`,
+      { type: mime }
+    );
+
+    // Solicitar edição à OpenAI
+    const result = await openai.images.edit({
+      model: "gpt-image-2.5-sunburst",
+      image: imageFile,
+      prompt: `
+Edite a fotografia original seguindo estas instruções:
+
+${prompt}
+
+PRESERVAÇÃO DA IDENTIDADE:
+- Preserve ao máximo a identidade da pessoa.
+- Não altere formato do rosto, olhos, nariz ou boca.
+- Não modifique cabelo, idade aparente ou expressão.
+- Preserve as características físicas originais.
+- Mantenha textura natural da pele.
+- Evite embelezamento artificial.
+- Evite aparência de pintura ou imagem artificial.
+- Faça somente as alterações solicitadas.
+      `,
+      quality: "medium",
+      output_format: "png",
+      n: 1
+    });
+
+    const editedImage = result.data?.[0]?.b64_json;
+
+    if (!editedImage) {
+      throw new Error("A OpenAI não retornou a imagem editada.");
+    }
+
+    return res.json({
+      success: true,
+      image: `data:image/png;base64,${editedImage}`,
+      message: "Fotografia editada com sucesso."
+    });
+
+  } catch (error) {
+    console.error("Erro ao editar fotografia:", error.message);
+
+    return res.status(500).json({
+      error: "Não foi possível editar a fotografia. Tente novamente."
+    });
+  }
+});
+
+// Inicialização do servidor
 app.listen(PORT, () => {
   console.log(`Studio Foto IA ativo na porta ${PORT}`);
 });
-         
