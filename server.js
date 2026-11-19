@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const express = require("express");
@@ -103,13 +102,12 @@ async function authenticate(req, res, next) {
     });
   }
 }
-
 // Verificar funcionamento
 app.get("/health", (req, res) => {
   res.json({
     status: "online",
     application: "Studio Foto IA",
-    version: "1.1.0"
+    version: "1.2.0"
   });
 });
 
@@ -192,7 +190,6 @@ ${idea}
     });
   }
 });
-
 // Analisar fotografia
 app.post("/api/analyze-image", authenticate, async (req, res) => {
   try {
@@ -287,11 +284,10 @@ Prepare também o melhor prompt recomendado.
     });
   }
 });
-
 // EDITAR FOTOGRAFIA COM IA
 app.post("/api/edit-image", authenticate, async (req, res) => {
   try {
-    const { image, prompt } = req.body;
+    const { image, prompt, intensity } = req.body;
 
     if (
       typeof image !== "string" ||
@@ -317,6 +313,49 @@ app.post("/api/edit-image", authenticate, async (req, res) => {
         error: "Informe as instruções de edição."
       });
     }
+
+    // Natural é o padrão
+    const validIntensities = [
+      "natural",
+      "professional",
+      "creative"
+    ];
+
+    const selectedIntensity = validIntensities.includes(intensity)
+      ? intensity
+      : "natural";
+
+    const intensityInstructions = {
+      natural: `
+NÍVEL DE EDIÇÃO: NATURAL (PRESERVAÇÃO MÁXIMA)
+- Trate a imagem como uma fotografia real que precisa de correções discretas.
+- Preserve rigorosamente a identidade da pessoa e a geometria facial.
+- Não redesenhe nem reinterprete rosto, olhos, sobrancelhas, nariz, boca, orelhas, queixo ou mandíbula.
+- Não altere idade aparente, expressão, cabelo, linha do cabelo, tom de pele, formato corporal ou proporções.
+- Não afine o rosto ou o corpo e não aplique embelezamento automático.
+- Preserve poros, linhas de expressão, marcas naturais e textura real da pele.
+- Faça apenas ajustes sutis de exposição, balanço de branco, contraste, cor e ruído, quando necessários.
+- Preserve pose, roupa, enquadramento e fundo, exceto quando o usuário pedir expressamente uma mudança.
+- Se uma alteração solicitada entrar em conflito com a preservação da identidade, priorize a identidade.
+      `,
+
+      professional: `
+NÍVEL DE EDIÇÃO: PROFISSIONAL
+- Preserve a identidade, a geometria facial, a idade aparente e as proporções físicas.
+- Melhore iluminação, exposição, balanço de branco, contraste, cores e nitidez com acabamento fotográfico profissional.
+- Mantenha textura natural da pele; não aplique efeito de pele plástica.
+- Não altere traços faciais, corpo, pose ou vestuário, salvo pedido explícito.
+- Evite filtros exagerados e aparência artificial.
+      `,
+
+      creative: `
+NÍVEL DE EDIÇÃO: CRIATIVO
+- Permita mudanças artísticas no cenário, atmosfera, iluminação e estilo somente conforme solicitado.
+- Preserve a identidade facial e as características físicas da pessoa sempre que ela continuar sendo o sujeito da fotografia.
+- Não invente mudanças corporais ou faciais que não tenham sido solicitadas.
+- Mantenha resultado visual coerente e fotográfico, salvo se o usuário pedir expressamente outro estilo.
+      `
+    };
 
     // Identificar formato da imagem
     const match = image.match(
@@ -345,23 +384,24 @@ app.post("/api/edit-image", authenticate, async (req, res) => {
 
     // Solicitar edição à OpenAI
     const result = await openai.images.edit({
-      model: "gpt-image-2.5-sunburst",
+      model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst",
       image: imageFile,
+
       prompt: `
-Edite a fotografia original seguindo estas instruções:
+Edite a fotografia original seguindo estas instruções do usuário:
 
 ${prompt}
 
-PRESERVAÇÃO DA IDENTIDADE:
-- Preserve ao máximo a identidade da pessoa.
-- Não altere formato do rosto, olhos, nariz ou boca.
-- Não modifique cabelo, idade aparente ou expressão.
-- Preserve as características físicas originais.
-- Mantenha textura natural da pele.
-- Evite embelezamento artificial.
-- Evite aparência de pintura ou imagem artificial.
-- Faça somente as alterações solicitadas.
+${intensityInstructions[selectedIntensity]}
+
+REGRAS GERAIS:
+- A fotografia enviada é a referência visual principal.
+- Não substitua a pessoa por outra pessoa.
+- Não crie uma nova composição quando uma correção localizada for suficiente.
+- Preserve os elementos que o usuário não pediu para modificar.
+- Entregue uma fotografia realista, sem texto, molduras ou marcas d'água adicionadas.
       `,
+
       quality: "medium",
       output_format: "png",
       n: 1
@@ -375,6 +415,7 @@ PRESERVAÇÃO DA IDENTIDADE:
 
     return res.json({
       success: true,
+      intensity: selectedIntensity,
       image: `data:image/png;base64,${editedImage}`,
       message: "Fotografia editada com sucesso."
     });
