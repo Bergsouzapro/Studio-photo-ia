@@ -287,7 +287,7 @@ Prepare também o melhor prompt recomendado.
 // EDITAR FOTOGRAFIA COM IA
 app.post("/api/edit-image", authenticate, async (req, res) => {
   try {
-    const { image, prompt, intensity } = req.body;
+   const { image, prompt, intensity, mask } = req.body;
 
     if (
       typeof image !== "string" ||
@@ -401,12 +401,43 @@ ACABAMENTO:
       `fotografia.${extension}`,
       { type: mime }
     );
+// Preparar máscara opcional de proteção
+let maskFile = undefined;
 
+if (mask) {
+  if (
+    typeof mask !== "string" ||
+    !/^data:image\/png;base64,/i.test(mask)
+  ) {
+    return res.status(400).json({
+      error: "A máscara deve ser um PNG válido."
+    });
+  }
+
+  const maskBase64 = mask.replace(
+    /^data:image\/png;base64,/i,
+    ""
+  );
+
+  const maskBuffer = Buffer.from(maskBase64, "base64");
+
+  if (maskBuffer.length > 4 * 1024 * 1024) {
+    return res.status(413).json({
+      error: "A máscara ultrapassa o limite de 4 MB."
+    });
+  }
+
+  maskFile = await toFile(
+    maskBuffer,
+    "protecao.png",
+    { type: "image/png" }
+  );
+}
     // Solicitar edição à OpenAI
     const result = await openai.images.edit({
       model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst",
       image: imageFile,
-
+...(maskFile ? { mask: maskFile } : {}),
       prompt: `
 Edite a fotografia original seguindo estas instruções do usuário:
 
