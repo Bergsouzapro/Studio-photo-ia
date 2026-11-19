@@ -45,7 +45,7 @@
    <div class="topline"><strong>Proteção da cabeça</strong><button type="button" class="secondary" id="toggleMaskEditor">Abrir ferramenta</button></div>
    <p class="muted">Pinte sobre a cabeça inteira para protegê-la: rosto, testa, queixo, orelhas, laterais e cabelo. A área transparente continuará disponível para edição. Evite avançar sobre pescoço, ombros e fundo.</p>
    <div id="maskEditor" class="hidden">
-    <div class="row"><button type="button" class="secondary" id="autoHeadMask">Marcar cabeça automaticamente</button></div><p class="muted">A detecção automática cria um contorno aproximado da cabeça a partir do rosto detectado. Confira cabelo e orelhas; ajuste com o pincel se necessário.</p>
+    <div class="row"><button type="button" class="secondary" id="autoHeadMask">Marcar cabeça automaticamente</button></div><p class="muted">A segmentação identifica cabelo e rosto por pixels. Confira orelhas e contorno; complete com o pincel se necessário.</p>
     <div class="field"><label for="maskBrush">Tamanho do pincel</label><input id="maskBrush" type="range" min="8" max="90" value="34"><span class="muted" id="maskBrushValue">34 px</span></div>
     <div class="row"><button type="button" class="secondary" id="clearMask">Limpar marcação</button><button type="button" class="secondary" id="finishMask">Concluir proteção</button></div>
     <div id="maskStage"><img id="maskSource" alt="Fotografia para marcar a área protegida"><canvas id="maskCanvas"></canvas></div>
@@ -104,37 +104,50 @@ $('clearMask').addEventListener('click',resetMask);
 $('autoHeadMask').addEventListener('click',async()=>{
  const btn=$('autoHeadMask');
  if(!maskCanvas.width||!$('maskSource').complete){showNotice('notice','Anexe uma fotografia antes de marcar a cabeça.',true);return;}
- btn.disabled=true;btn.textContent='Detectando rosto...';
+ btn.disabled=true;btn.textContent='Segmentando cabeça...';
  try{
+  // Segmentação multiclasses: cabelo (1) e pele do rosto (3).
+  // Diferente da elipse anterior, a máscara acompanha os pixels detectados.
   const vision=await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm');
   const fileset=await vision.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
-  const detector=await vision.FaceDetector.createFromOptions(fileset,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'IMAGE',minDetectionConfidence:0.5});
-  const result=detector.detect($('maskSource'));detector.close();
-  const detections=result.detections||[];
-  if(!detections.length)throw new Error('Não consegui localizar um rosto. Use o pincel manual.');
-  const box=detections[0].boundingBox;
-  // O detector localiza o rosto, não a cabeça inteira. Expandimos o contorno
-  // moderadamente para incluir cabelo e orelhas, sem descer até os ombros.
-  const x=box.originX, y=box.originY, w=box.width, h=box.height;
-  const left=x-w*0.20, right=x+w*1.20;
-  const top=y-h*0.38, chin=y+h*1.18;
-  const mid=x+w*0.50;
-  maskCtx.save();
-  maskCtx.fillStyle='#ffffff';
-  maskCtx.beginPath();
-  // Contorno arredondado da cabeça: topo/cabelo, laterais/orelhas e mandíbula.
-  maskCtx.moveTo(mid, top);
-  maskCtx.bezierCurveTo(x+w*0.18, top-h*0.10, left, y+h*0.08, left, y+h*0.48);
-  maskCtx.bezierCurveTo(left-w*0.02, y+h*0.78, x+w*0.05, y+h*1.02, x+w*0.22, y+h*1.10);
-  maskCtx.quadraticCurveTo(mid, chin, x+w*0.78, y+h*1.10);
-  maskCtx.bezierCurveTo(x+w*0.95, y+h*1.02, right+w*0.02, y+h*0.78, right, y+h*0.48);
-  maskCtx.bezierCurveTo(right, y+h*0.08, x+w*0.82, top-h*0.10, mid, top);
-  maskCtx.closePath();
-  maskCtx.fill();
-  maskCtx.restore();
-  maskHasPaint=true;
-  showNotice('notice','Marcação automática criada. Confira se cabelo e orelhas estão cobertos e ajuste com o pincel, se necessário.');
- }catch(error){showNotice('notice','Não foi possível fazer a marcação automática: '+error.message+' Use o pincel manual.',true);}
+  const segmenter=await vision.ImageSegmenter.createFromOptions(fileset,{
+   baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite'},
+   runningMode:'IMAGE',outputCategoryMask:true,outputConfidenceMasks:false
+  });
+  const result=segmenter.segment($('maskSource'));
+  segmenter.close();
+  const categoryMask=result.categoryMask;
+  if(!categoryMask)throw new Error('O modelo não retornou o mapa de segmentação.');
+  const labels=categoryMask.getAsUint8Array();
+  const mw=categoryMask.width,mh=categoryMask.height;
+  if(!mw||!mh||labels.length!==mw*mh)throw new Error('O mapa de segmentação veio em formato inesperado.');
+  const sw=maskCanvas.width,sh=maskCanvas.height;
+  const imageData=maskCtx.createImageData(sw,sh);
+  let protectedPixels=0;
+  for(let y=0;y<sh;y++){
+   const my=Math.min(mh-1,Math.floor(y*mh/sh));
+   for(let x=0;x<sw;x++){
+    const mx=Math.min(mw-1,Math.floor(x*mw/sw));
+    const label=labels[my*mw+mx];
+    // IDs do modelo multiclasses: 1=cabelo, 3=pele do rosto.
+    // Não incluir corpo/roupa (classes 2 e 4), evitando proteger ombros.
+    if(label===1||label===3){
+     const i=(y*sw+x)*4;imageData.data[i]=255;imageData.data[i+1]=255;imageData.data[i+2]=255;imageData.data[i+3]=255;protectedPixels++;
+    }
+   }
+  }
+  if(protectedPixels<Math.max(100,sw*sh*0.001))throw new Error('A segmentação não encontrou cabelo ou rosto suficientes. Use o pincel manual.');
+  // Pequena expansão de 2 px para reduzir falhas nas bordas sem criar uma elipse.
+  const source=imageData.data.slice();
+  for(let y=1;y<sh-1;y++)for(let x=1;x<sw-1;x++){
+   const i=(y*sw+x)*4;if(source[i+3])continue;
+   let found=false;
+   for(let dy=-1;dy<=1&&!found;dy++)for(let dx=-1;dx<=1;dx++)if(source[((y+dy)*sw+x+dx)*4+3]){found=true;break;}
+   if(found){imageData.data[i]=255;imageData.data[i+1]=255;imageData.data[i+2]=255;imageData.data[i+3]=255;}
+  }
+  maskCtx.putImageData(imageData,0,0);maskHasPaint=true;
+  showNotice('notice','Segmentação criada por pixels: cabelo e rosto. Confira as orelhas e complete manualmente se necessário. Pescoço, ombros e roupa não são incluídos automaticamente.');
+ }catch(error){showNotice('notice','Não foi possível segmentar a cabeça: '+error.message+' Você ainda pode usar o pincel manual.',true);}
  finally{btn.disabled=false;btn.textContent='Marcar cabeça automaticamente';}
 });
 $('toggleMaskEditor').addEventListener('click',()=>{$('maskEditor').classList.toggle('hidden');$('toggleMaskEditor').textContent=$('maskEditor').classList.contains('hidden')?'Abrir ferramenta':'Fechar ferramenta';});
