@@ -45,7 +45,7 @@
    <div class="topline"><strong>Proteção da cabeça</strong><button type="button" class="secondary" id="toggleMaskEditor">Abrir ferramenta</button></div>
    <p class="muted">Pinte sobre a cabeça inteira para protegê-la: rosto, testa, queixo, orelhas, laterais e cabelo. A área transparente continuará disponível para edição. Evite avançar sobre pescoço, ombros e fundo.</p>
    <div id="maskEditor" class="hidden">
-    <div class="row"><button type="button" class="secondary" id="autoHeadMask">Marcar cabeça automaticamente</button></div><p class="muted">A detecção automática é aproximada. Confira cabelo, orelhas e contorno; complete com o pincel se necessário.</p>
+    <div class="row"><button type="button" class="secondary" id="autoHeadMask">Marcar cabeça automaticamente</button></div><p class="muted">A detecção automática cria um contorno aproximado da cabeça a partir do rosto detectado. Confira cabelo e orelhas; ajuste com o pincel se necessário.</p>
     <div class="field"><label for="maskBrush">Tamanho do pincel</label><input id="maskBrush" type="range" min="8" max="90" value="34"><span class="muted" id="maskBrushValue">34 px</span></div>
     <div class="row"><button type="button" class="secondary" id="clearMask">Limpar marcação</button><button type="button" class="secondary" id="finishMask">Concluir proteção</button></div>
     <div id="maskStage"><img id="maskSource" alt="Fotografia para marcar a área protegida"><canvas id="maskCanvas"></canvas></div>
@@ -113,11 +113,26 @@ $('autoHeadMask').addEventListener('click',async()=>{
   const detections=result.detections||[];
   if(!detections.length)throw new Error('Não consegui localizar um rosto. Use o pincel manual.');
   const box=detections[0].boundingBox;
-  const cx=box.originX+box.width/2;
-  const cy=box.originY+box.height*0.43;
-  const rx=box.width*0.98;
-  const ry=box.height*1.42;
-  maskCtx.save();maskCtx.fillStyle='#ffffff';maskCtx.beginPath();maskCtx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);maskCtx.fill();maskCtx.restore();maskHasPaint=true;
+  // O detector localiza o rosto, não a cabeça inteira. Expandimos o contorno
+  // moderadamente para incluir cabelo e orelhas, sem descer até os ombros.
+  const x=box.originX, y=box.originY, w=box.width, h=box.height;
+  const left=x-w*0.20, right=x+w*1.20;
+  const top=y-h*0.38, chin=y+h*1.18;
+  const mid=x+w*0.50;
+  maskCtx.save();
+  maskCtx.fillStyle='#ffffff';
+  maskCtx.beginPath();
+  // Contorno arredondado da cabeça: topo/cabelo, laterais/orelhas e mandíbula.
+  maskCtx.moveTo(mid, top);
+  maskCtx.bezierCurveTo(x+w*0.18, top-h*0.10, left, y+h*0.08, left, y+h*0.48);
+  maskCtx.bezierCurveTo(left-w*0.02, y+h*0.78, x+w*0.05, y+h*1.02, x+w*0.22, y+h*1.10);
+  maskCtx.quadraticCurveTo(mid, chin, x+w*0.78, y+h*1.10);
+  maskCtx.bezierCurveTo(x+w*0.95, y+h*1.02, right+w*0.02, y+h*0.78, right, y+h*0.48);
+  maskCtx.bezierCurveTo(right, y+h*0.08, x+w*0.82, top-h*0.10, mid, top);
+  maskCtx.closePath();
+  maskCtx.fill();
+  maskCtx.restore();
+  maskHasPaint=true;
   showNotice('notice','Marcação automática criada. Confira se cabelo e orelhas estão cobertos e ajuste com o pincel, se necessário.');
  }catch(error){showNotice('notice','Não foi possível fazer a marcação automática: '+error.message+' Use o pincel manual.',true);}
  finally{btn.disabled=false;btn.textContent='Marcar cabeça automaticamente';}
