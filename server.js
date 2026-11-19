@@ -350,11 +350,26 @@ NÍVEL DE EDIÇÃO: PROFISSIONAL
 
       creative: `
 NÍVEL DE EDIÇÃO: CRIATIVO
-- Permita mudanças artísticas no cenário, atmosfera, iluminação e estilo somente conforme solicitado.
-- Preserve a identidade facial e as características físicas da pessoa sempre que ela continuar sendo o sujeito da fotografia.
-- Não invente mudanças corporais ou faciais que não tenham sido solicitadas.
-- Mantenha resultado visual coerente e fotográfico, salvo se o usuário pedir expressamente outro estilo.
-      `
+
+PRIORIDADE PRINCIPAL:
+- Execute as mudanças de cenário, ambiente e composição solicitadas pelo usuário.
+- Se o usuário pedir uma praia, substitua o fundo original por uma praia.
+- Se pedir outro ambiente, construa visualmente esse novo ambiente.
+- Não mantenha o cenário original quando ele for explicitamente solicitado para substituição.
+- A mudança de cenário deve ser claramente visível no resultado.
+
+PRESERVAÇÃO DA PESSOA:
+- Mantenha a mesma pessoa da fotografia original.
+- Preserve formato do rosto, olhos, nariz, boca e características faciais.
+- Preserve idade aparente, cabelo, tom de pele e proporções corporais.
+- Não substitua a pessoa por um modelo genérico.
+- Não altere a identidade para combinar com o novo cenário.
+
+QUALIDADE:
+- Integre a pessoa naturalmente ao novo ambiente.
+- Ajuste iluminação, sombras e perspectiva para combinar com o cenário.
+- Produza aparência de fotografia real, sem aspecto de montagem artificial.
+`
     };
 
     // Identificar formato da imagem
