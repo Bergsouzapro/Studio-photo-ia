@@ -45,7 +45,8 @@
    <input id="favoritePresetName" type="text" maxlength="40" placeholder="Nome: Praia cinematográfica">
    <div class="row"><button type="button" class="secondary" id="saveFavoritePreset">Salvar configuração</button></div>
    <select id="favoritePresetList" aria-label="Configurações salvas"><option value="">Nenhuma configuração salva</option></select>
-   <div class="row"><button type="button" class="secondary" id="applyFavoritePreset">Usar selecionada</button><button type="button" class="danger" id="deleteFavoritePreset">Excluir selecionada</button></div>
+   <div class="row"><button type="button" class="secondary" id="applyFavoritePreset">Usar selecionada</button><button type="button" class="secondary" id="updateFavoritePreset">Atualizar selecionada</button></div>
+   <div class="row"><button type="button" class="secondary" id="duplicateFavoritePreset">Duplicar selecionada</button><button type="button" class="danger" id="deleteFavoritePreset">Excluir selecionada</button></div>
    <p class="muted">As configurações ficam salvas neste aparelho. A máscara da cabeça precisa ser refeita para cada fotografia.</p>
    <div class="notice" id="favoriteNotice" aria-live="polite"></div>
   </div>
@@ -204,6 +205,28 @@ $('applyFavoritePreset').addEventListener('click',()=>{
  if(Number.isFinite(preset.brushSize)){$('maskBrush').value=String(Math.min(90,Math.max(8,preset.brushSize)));$('maskBrushValue').textContent=$('maskBrush').value+' px';}
  $('favoritePresetName').value=preset.name||'';
  showNotice('favoriteNotice','Configuração “'+(preset.name||'sem nome')+'” aplicada. Refaça a proteção da cabeça para a nova fotografia.');
+});
+$('updateFavoritePreset').addEventListener('click',()=>{
+ const selected=$('favoritePresetList').value;
+ const presets=readFavoritePresets(),index=presets.findIndex(p=>String(p.id)===String(selected));
+ if(index<0){showNotice('favoriteNotice','Selecione uma configuração para atualizar.',true);return;}
+ const name=$('favoritePresetName').value.trim(),prompt=$('idea').value.trim();
+ if(!name){showNotice('favoriteNotice','Digite o nome da configuração.',true);$('favoritePresetName').focus();return;}
+ if(!prompt){showNotice('favoriteNotice','Escreva a instrução antes de atualizar.',true);return;}
+ presets[index]={...presets[index],name,intensity:$('editIntensity').value,prompt,brushSize:Number($('maskBrush').value),updatedAt:new Date().toISOString()};
+ try{localStorage.setItem(FAVORITE_PRESETS_KEY,JSON.stringify(presets));renderFavoritePresets(selected);showNotice('favoriteNotice','Configuração “'+name+'” atualizada com os valores atuais.');}
+ catch(e){showNotice('favoriteNotice','Não foi possível atualizar: '+e.message,true);}
+});
+$('duplicateFavoritePreset').addEventListener('click',()=>{
+ const selected=$('favoritePresetList').value;
+ const source=readFavoritePresets().find(p=>String(p.id)===String(selected));
+ if(!source){showNotice('favoriteNotice','Selecione uma configuração para duplicar.',true);return;}
+ const presets=readFavoritePresets();
+ const base=(source.name||'Configuração')+' (cópia)';
+ let name=base,n=2;while(presets.some(p=>p.name===name)){name=(source.name||'Configuração')+' (cópia '+n+')';n++;}
+ const copy={...source,id:'preset-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),name,savedAt:new Date().toISOString()};
+ try{presets.unshift(copy);localStorage.setItem(FAVORITE_PRESETS_KEY,JSON.stringify(presets.slice(0,30)));renderFavoritePresets(copy.id);$('favoritePresetName').value=name;showNotice('favoriteNotice','Cópia criada: “'+name+'”. A original foi mantida.');}
+ catch(e){showNotice('favoriteNotice','Não foi possível duplicar: '+e.message,true);}
 });
 $('deleteFavoritePreset').addEventListener('click',()=>{
  const selected=$('favoritePresetList').value;
