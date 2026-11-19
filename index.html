@@ -40,7 +40,7 @@
  <h3 id="formTitle">Criar fotografia</h3><p id="formDescription">Descreva a fotografia que deseja criar. A inteligência artificial preparará um prompt detalhado.</p>
  <div id="editorArea"><div class="field"><label for="idea">Descreva o que deseja criar</label><textarea id="idea" placeholder="Ex.: Quero uma fotografia minha sentado em uma praia do Marajó, com iluminação natural, aparência espontânea e realista..."></textarea></div>
   <div class="field" id="intensityField" style="display:none"><label for="editIntensity">Intensidade da edição</label><select id="editIntensity"><option value="natural" selected>Natural — preservação máxima</option><option value="professional">Profissional — iluminação, cores e nitidez</option><option value="creative">Criativo — mudanças de cenário e estilo</option></select><p class="muted">O modo Natural é recomendado para preservar sua aparência.</p></div>
-  <div class="field" id="favoritePresetField" style="display:none"><label>Configuração favorita</label><div class="row"><button type="button" class="secondary" id="saveFavoritePreset">Salvar configuração favorita</button><button type="button" class="secondary" id="applyFavoritePreset">Usar favorita</button></div><p class="muted">Salva a intensidade e o texto da instrução neste aparelho. A máscara da cabeça precisa ser refeita para cada fotografia.</p></div>
+  <div class="field" id="favoritePresetField" style="display:none"><label>Configuração favorita</label><div class="row"><button type="button" class="secondary" id="saveFavoritePreset">Salvar configuração favorita</button><button type="button" class="secondary" id="applyFavoritePreset">Usar favorita</button></div><p class="muted">Salva a intensidade e o texto da instrução neste aparelho. A máscara da cabeça precisa ser refeita para cada fotografia.</p><div class="notice" id="favoriteNotice" aria-live="polite"></div></div>
  <label class="upload">📎 Anexar fotografia de referência<input type="file" id="imageInput" accept="image/jpeg,image/png,image/webp"></label><img id="preview" alt="Prévia da fotografia selecionada">
   <div id="maskTools" class="hidden">
    <div class="topline"><strong>Proteção da cabeça</strong><button type="button" class="secondary" id="toggleMaskEditor">Abrir ferramenta</button></div>
@@ -157,19 +157,19 @@ $('finishMask').addEventListener('click',()=>{$('maskEditor').classList.add('hid
 const FAVORITE_PRESET_KEY='studio_foto_ia_favorite_edit_preset_v1';
 $('saveFavoritePreset').addEventListener('click',()=>{
  const prompt=$('idea').value.trim();
- if(!prompt){showNotice('notice','Escreva primeiro a instrução que deseja guardar como favorita.',true);return;}
+ if(!prompt){showNotice('favoriteNotice','Escreva primeiro a instrução que deseja guardar como favorita.',true);return;}
  const preset={intensity:$('editIntensity').value,prompt,brushSize:Number($('maskBrush').value),savedAt:new Date().toISOString()};
- try{localStorage.setItem(FAVORITE_PRESET_KEY,JSON.stringify(preset));showNotice('notice','Configuração favorita salva neste aparelho. A máscara será refeita em cada nova fotografia.');}
- catch(e){showNotice('notice','Não foi possível salvar a configuração neste navegador.',true);}
+ try{localStorage.setItem(FAVORITE_PRESET_KEY,JSON.stringify(preset));showNotice('favoriteNotice','Configuração favorita salva neste aparelho. A máscara será refeita em cada nova fotografia.');}
+ catch(e){showNotice('favoriteNotice','Não foi possível salvar a configuração neste navegador: '+e.message,true);}
 });
 $('applyFavoritePreset').addEventListener('click',()=>{
  let preset;
  try{preset=JSON.parse(localStorage.getItem(FAVORITE_PRESET_KEY)||'null');}catch{}
- if(!preset){showNotice('notice','Ainda não existe uma configuração favorita salva neste aparelho.',true);return;}
+ if(!preset){showNotice('favoriteNotice','Ainda não existe uma configuração favorita salva neste aparelho.',true);return;}
  if(['natural','professional','creative'].includes(preset.intensity))$('editIntensity').value=preset.intensity;
  $('idea').value=typeof preset.prompt==='string'?preset.prompt:'';
  if(Number.isFinite(preset.brushSize)){$('maskBrush').value=String(Math.min(90,Math.max(8,preset.brushSize)));$('maskBrushValue').textContent=$('maskBrush').value+' px';}
- showNotice('notice','Configuração favorita aplicada. Anexe a fotografia e refaça a proteção da cabeça.');
+ showNotice('favoriteNotice','Configuração favorita aplicada. Anexe a fotografia e refaça a proteção da cabeça.');
 });
 $('imageInput').addEventListener('change',e=>{const file=e.target.files[0],preview=$('preview');if(!file){preview.style.display='none';$('maskTools').classList.add('hidden');resetMask();return}if(file.size>10*1024*1024){alert('A imagem deve ter no máximo 10 MB.');e.target.value='';return}if(!['image/jpeg','image/png','image/webp'].includes(file.type)){alert('Formato não permitido. Utilize JPG, PNG ou WEBP.');e.target.value='';return}const objectUrl=URL.createObjectURL(file);preview.src=objectUrl;preview.style.display='block';$('maskSource').onload=()=>{maskCanvas.width=$('maskSource').naturalWidth;maskCanvas.height=$('maskSource').naturalHeight;resetMask();updateMaskTools();};$('maskSource').src=objectUrl;updateMaskTools();});
 function fileToDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)})}
