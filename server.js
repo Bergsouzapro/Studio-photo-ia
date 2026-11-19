@@ -349,27 +349,32 @@ NÍVEL DE EDIÇÃO: PROFISSIONAL
       `,
 
       creative: `
-NÍVEL DE EDIÇÃO: CRIATIVO
+NÍVEL DE EDIÇÃO: CRIATIVO — IDENTIDADE PROTEGIDA
 
-PRIORIDADE PRINCIPAL:
-- Execute as mudanças de cenário, ambiente e composição solicitadas pelo usuário.
-- Se o usuário pedir uma praia, substitua o fundo original por uma praia.
-- Se pedir outro ambiente, construa visualmente esse novo ambiente.
-- Não mantenha o cenário original quando ele for explicitamente solicitado para substituição.
-- A mudança de cenário deve ser claramente visível no resultado.
-
-PRESERVAÇÃO DA PESSOA:
-- Mantenha a mesma pessoa da fotografia original.
-- Preserve formato do rosto, olhos, nariz, boca e características faciais.
-- Preserve idade aparente, cabelo, tom de pele e proporções corporais.
-- Não substitua a pessoa por um modelo genérico.
-- Não altere a identidade para combinar com o novo cenário.
-
-QUALIDADE:
-- Integre a pessoa naturalmente ao novo ambiente.
-- Ajuste iluminação, sombras e perspectiva para combinar com o cenário.
-- Produza aparência de fotografia real, sem aspecto de montagem artificial.
-`
+OBJETIVO:
+- Realize as mudanças de cenário e ambiente solicitadas pelo usuário.
+- Substitua completamente o fundo quando o usuário pedir outro cenário.
+- Preserve a pessoa original como elemento principal da fotografia.
+PROTEÇÃO DA IDENTIDADE — PRIORIDADE MÁXIMA:
+- Trate a pessoa da fotografia original como um elemento que deve permanecer visualmente inalterado.
+- Preserve rigorosamente o rosto original.
+- Não redesenhe, reinterprete, embeleze ou modifique os traços faciais.
+- Mantenha exatamente o formato do rosto, olhos, sobrancelhas, nariz, boca, queixo e mandíbula.
+- Preserve expressão, idade aparente, textura da pele e características individuais.
+- Não afine o rosto, não altere o corpo e não modifique as proporções físicas.
+- Não substitua a pessoa por outra pessoa semelhante.
+- Não invente detalhes físicos.
+ALTERAÇÃO DO CENÁRIO:
+- Concentre as mudanças no fundo e no ambiente.
+- Preserve pose, roupa e enquadramento da pessoa.
+- Não altere a posição ou o tamanho da pessoa na fotografia.
+- Integre o novo cenário com iluminação, sombras e perspectiva naturais.
+ACABAMENTO:
+- Aparência de fotografia profissional real.
+- Textura natural da pele.
+- Cores equilibradas e iluminação coerente.
+- Evite aparência artificial, filtros exagerados ou efeito de montagem.
+  `
     };
 
     // Identificar formato da imagem
