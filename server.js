@@ -314,6 +314,28 @@ Mantenha a pessoa reconhecível e preserve sua identidade.
 
     // Instruções para uso da imagem de referência
     const referenceInstructions = referenceImage
+  ? `
+REGRA PRINCIPAL: PRESERVAR A IDENTIDADE.
+
+A primeira imagem é a fotografia original da pessoa.
+Ela é a única fonte autorizada para definir a identidade.
+
+Mantenha o rosto original, formato facial, olhos, nariz,
+boca, cabelo, idade aparente, tom de pele e características
+individuais da pessoa.
+
+NÃO copie nem misture o rosto da pessoa da segunda imagem.
+NÃO substitua a pessoa original.
+NÃO altere sua identidade para imitar o modelo da referência.
+
+A segunda imagem deve servir somente como referência
+para roupa, pose, cenário, iluminação, cores,
+enquadramento e composição.
+
+Reproduza o estilo visual solicitado mantendo a pessoa
+da primeira fotografia reconhecível e fiel à original.
+`
+  : "";
       ? `
 A primeira imagem é a fotografia principal e define a identidade
 da pessoa que deve aparecer no resultado.
