@@ -314,6 +314,23 @@ app.post("/api/edit-image", authenticate, async (req, res) => {
     if (
       typeof prompt !== "string" ||
       !prompt.trim() ||
+    // Validar fotografia de referência
+if (referenceImage) {
+  if (
+    typeof referenceImage !== "string" ||
+    !/^data:image\/(jpeg|png|webp);base64,/i.test(referenceImage)
+  ) {
+    return res.status(400).json({
+      error: "A referência deve ser JPG, PNG ou WEBP."
+    });
+  }
+
+  if (referenceImage.length > 12 * 1024 * 1024) {
+    return res.status(413).json({
+      error: "A fotografia de referência é muito grande."
+    });
+  }
+  }
       prompt.length > 12000
     ) {
       return res.status(400).json({
