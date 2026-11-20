@@ -285,3 +285,97 @@ Prepare também o melhor prompt recomendado.
     });
   }
 });
+// EDITAR FOTOGRAFIA COM IA
+app.post("/api/edit-image", authenticate, async (req, res) => {
+  try {
+    const { image, prompt, intensity, mask } = req.body;
+
+    if (
+      typeof image !== "string" ||
+      !/^data:image\/(jpeg|png|webp);base64,/i.test(image)
+    ) {
+      return res.status(400).json({
+        error: "Envie uma fotografia JPG, PNG ou WEBP válida."
+      });
+    }
+
+    if (image.length > 12 * 1024 * 1024) {
+      return res.status(413).json({
+        error: "Fotografia muito grande. Reduza o tamanho."
+      });
+    }
+
+    if (
+      typeof prompt !== "string" ||
+      !prompt.trim() ||
+      prompt.length > 12000
+    ) {
+      return res.status(400).json({
+        error: "Informe as instruções de edição."
+      });
+    }
+
+    // Intensidades disponíveis
+    const validIntensities = [
+      "natural",
+      "professional",
+      "creative",
+      "identity"
+    ];
+
+    const selectedIntensity = validIntensities.includes(intensity)
+      ? intensity
+      : "natural";
+
+    // Instruções específicas de cada modo
+    const intensityInstructions = {
+      identity: `
+MODO: PRESERVAÇÃO DE IDENTIDADE — PRIORIDADE MÁXIMA
+
+OBJETIVO:
+- Faça somente as alterações solicitadas pelo usuário.
+- Preserve a pessoa da fotografia original como referência visual obrigatória.
+- Quando o usuário pedir mudança de cenário, concentre a edição no fundo e no ambiente.
+
+PRESERVAÇÃO DA PESSOA:
+- Preserve a identidade e os traços faciais da pessoa original.
+- Não redesenhe, reinterprete, embeleze ou substitua o rosto.
+- Mantenha formato do rosto, olhos, sobrancelhas, nariz, boca, queixo e mandíbula.
+- Preserve idade aparente, expressão, cabelo, linha do cabelo, tom e textura natural da pele.
+- Não afine, aumente ou reduza o rosto ou o corpo.
+- Preserve proporções físicas, pose, roupa e posição da pessoa.
+- Não invente características físicas nem transforme a pessoa em alguém apenas semelhante.
+
+ALTERAÇÕES DE CENÁRIO:
+- Se for solicitado outro ambiente, substitua o fundo de forma clara e coerente.
+- Não mantenha o cenário original quando o pedido exigir sua substituição.
+- Integre a pessoa ao novo ambiente com perspectiva, iluminação e sombras naturais.
+- Não altere a pessoa para adaptar o cenário; adapte o cenário à pessoa.
+
+RESULTADO:
+- Aparência de fotografia real, sem aspecto de montagem.
+- Preserve detalhes naturais e textura da pele.
+- Não adicione textos, molduras ou marcas d'água.
+      `,
+
+      natural: `
+NÍVEL DE EDIÇÃO: NATURAL (PRESERVAÇÃO MÁXIMA)
+- Trate a imagem como uma fotografia real que precisa de correções discretas.
+- Preserve rigorosamente a identidade da pessoa e a geometria facial.
+- Não redesenhe nem reinterprete rosto, olhos, sobrancelhas, nariz, boca, orelhas, queixo ou mandíbula.
+- Não altere idade aparente, expressão, cabelo, linha do cabelo, tom de pele, formato corporal ou proporções.
+- Não afine o rosto ou o corpo e não aplique embelezamento automático.
+- Preserve poros, linhas de expressão, marcas naturais e textura real da pele.
+- Faça apenas ajustes sutis de exposição, balanço de branco, contraste, cor e ruído, quando necessários.
+- Preserve pose, roupa, enquadramento e fundo, exceto quando o usuário pedir expressamente uma mudança.
+- Se uma alteração solicitada entrar em conflito com a preservação da identidade, priorize a identidade.
+      `,
+
+      professional: `
+NÍVEL DE EDIÇÃO: PROFISSIONAL
+- Preserve a identidade, a geometria facial, a idade aparente e as proporções físicas.
+- Melhore iluminação, exposição, balanço de branco, contraste, cores e nitidez com acabamento fotográfico profissional.
+- Mantenha textura natural da pele; não aplique efeito de pele plástica.
+- Não altere traços faciais, corpo, pose ou vestuário, salvo pedido explícito.
+- Evite filtros exagerados e aparência artificial.
+      `,
