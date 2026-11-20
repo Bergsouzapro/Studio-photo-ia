@@ -311,7 +311,10 @@ $('createBtn').addEventListener('click',async()=>{
   if(selectedModule==='laboratorio'){
    const image=await fileToDataUrl(file);
    const payload={image,prompt:idea,intensity:$('editIntensity').value};
-    if(maskHasPaint)payload.mask=maskCanvas.toDataURL('image/png');
+   if(referenceImageData){
+  payload.referenceImage = referenceImageData;
+   }
+   if(maskHasPaint)payload.mask=maskCanvas.toDataURL('image/png');
     data=await callApi('/api/edit-image',payload);
    if(!data.image)throw new Error(data.error||'O servidor não retornou a fotografia editada.');
    lastOutput='';
