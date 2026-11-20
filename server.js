@@ -209,3 +209,119 @@ app.post("/api/analyze-image", authenticate, async (req, res) => {
     });
   }
 });
+// Editar fotografia
+app.post("/api/edit-image", authenticate, async (req, res) => {
+  try {
+    const {
+      image,
+      prompt,
+      intensity,
+      mask,
+      referenceImage
+    } = req.body;
+
+    // Validar fotografia principal
+    if (
+      typeof image !== "string" ||
+      !/^data:image\/(jpeg|png|webp);base64,/i.test(image)
+    ) {
+      return res.status(400).json({
+        error: "Envie uma fotografia principal válida."
+      });
+    }
+
+    if (image.length > 25 * 1024 * 1024) {
+      return res.status(413).json({
+        error: "A fotografia principal é muito grande."
+      });
+    }
+
+    // Validar instruções
+    if (
+      typeof prompt !== "string" ||
+      !prompt.trim() ||
+      prompt.length > 12000
+    ) {
+      return res.status(400).json({
+        error: "Informe as instruções de edição."
+      });
+    }
+
+    // Validar fotografia de referência
+    if (referenceImage) {
+      if (
+        typeof referenceImage !== "string" ||
+        !/^data:image\/(jpeg|png|webp);base64,/i.test(referenceImage)
+      ) {
+        return res.status(400).json({
+          error: "A referência deve ser JPG, PNG ou WEBP."
+        });
+      }
+
+      if (referenceImage.length > 12 * 1024 * 1024) {
+        return res.status(413).json({
+          error: "A fotografia de referência é muito grande."
+        });
+      }
+    }
+
+    // Intensidades disponíveis
+    const intensityInstructions = {
+      identity: `
+Preserve rigorosamente a identidade da pessoa da fotografia principal.
+Mantenha rosto, traços faciais, idade aparente e características físicas.
+Não substitua a pessoa por alguém da imagem de referência.
+      `,
+
+      natural: `
+Faça uma edição natural e realista.
+Evite alterações exageradas no rosto, corpo e aparência.
+Preserve as características originais da pessoa.
+      `,
+
+      professional: `
+Aplique acabamento fotográfico profissional.
+Aprimore iluminação, cores, nitidez, composição e profundidade.
+Mantenha aparência realista e natural.
+      `,
+
+      creative: `
+Aplique uma edição criativa e cinematográfica.
+Explore iluminação, cores, atmosfera e composição visual.
+Mantenha a pessoa reconhecível e preserve sua identidade.
+      `
+    };
+
+    const selectedIntensity =
+      intensityInstructions[intensity] ||
+      intensityInstructions.professional;
+
+    // Instruções para uso da imagem de referência
+    const referenceInstructions = referenceImage
+      ? `
+A primeira imagem é a fotografia principal e define a identidade
+da pessoa que deve aparecer no resultado.
+
+A segunda imagem é apenas uma referência visual.
+Use-a como inspiração para roupa, pose, cenário, composição,
+iluminação, cores e estilo fotográfico, conforme solicitado.
+
+Não copie a identidade, o rosto ou as características físicas
+de pessoas que apareçam na imagem de referência.
+
+A pessoa da fotografia principal deve continuar sendo a pessoa
+representada no resultado final.
+      `
+      : "";
+
+    const finalPrompt = `
+${selectedIntensity}
+
+${referenceInstructions}
+
+INSTRUÇÕES DO USUÁRIO:
+${prompt}
+    `;
+
+    // A conversão das imagens e a chamada à API
+    // serão concluídas na Parte 4.
