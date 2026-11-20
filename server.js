@@ -312,9 +312,9 @@ Mantenha a pessoa reconhecível e preserve sua identidade.
       intensityInstructions[intensity] ||
       intensityInstructions.professional;
 
-    // Instruções para uso da imagem de referência
+        // Instruções para uso da imagem de referência
     const referenceInstructions = referenceImage
-  ? `
+      ? `
 REGRA PRINCIPAL: PRESERVAR A IDENTIDADE.
 
 A primeira imagem é a fotografia original da pessoa.
@@ -335,24 +335,7 @@ enquadramento e composição.
 Reproduza o estilo visual solicitado mantendo a pessoa
 da primeira fotografia reconhecível e fiel à original.
 `
-  : "";
-      ? `
-A primeira imagem é a fotografia principal e define a identidade
-da pessoa que deve aparecer no resultado.
-
-A segunda imagem é apenas uma referência visual.
-Use-a como inspiração para roupa, pose, cenário, composição,
-iluminação, cores e estilo fotográfico, conforme solicitado.
-
-Não copie a identidade, o rosto ou as características físicas
-de pessoas que apareçam na imagem de referência.
-
-A pessoa da fotografia principal deve continuar sendo a pessoa
-representada no resultado final.
-      `
       : "";
-
-    const finalPrompt = `
 ${selectedIntensity}
 
 ${referenceInstructions}
