@@ -288,7 +288,13 @@ Prepare também o melhor prompt recomendado.
 // EDITAR FOTOGRAFIA COM IA
 app.post("/api/edit-image", authenticate, async (req, res) => {
   try {
-    const { image, prompt, intensity, mask } = req.body;
+    const {
+  image,
+  prompt,
+  intensity,
+  mask,
+  referenceImage
+} = req.body;
 
     if (
       typeof image !== "string" ||
