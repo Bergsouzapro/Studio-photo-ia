@@ -268,10 +268,26 @@ app.post("/api/edit-image", authenticate, async (req, res) => {
     // Intensidades disponíveis
     const intensityInstructions = {
       identity: `
-Preserve rigorosamente a identidade da pessoa da fotografia principal.
-Mantenha rosto, traços faciais, idade aparente e características físicas.
-Não substitua a pessoa por alguém da imagem de referência.
-      `,
+PRIORIDADE ABSOLUTA: PRESERVAÇÃO DA IDENTIDADE.
+
+A pessoa da primeira fotografia é o único sujeito que deve
+ser representado no resultado final.
+
+Preserve rigorosamente:
+- Formato original do rosto.
+- Olhos, nariz, boca e sobrancelhas.
+- Estrutura facial e proporções.
+- Tom e textura natural da pele.
+- Idade aparente e características individuais.
+- Cabelo e demais características reconhecíveis.
+
+Não embeleze, rejuvenesça, afine ou transforme o rosto.
+Não misture características faciais da pessoa da referência.
+Não substitua a identidade original.
+
+A segunda fotografia deve servir exclusivamente como
+referência visual para o estilo solicitado.
+`,
 
       natural: `
 Faça uma edição natural e realista.
