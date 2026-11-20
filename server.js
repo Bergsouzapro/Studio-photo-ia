@@ -35,7 +35,7 @@ app.use(cors({
 }));
 
 // Receber imagens em Base64
-app.use(express.json({ limit: "15mb" }));
+app.use(express.json({ limit: "40mb" }));
 
 // Limite de solicitações por IP
 const requests = new Map();
