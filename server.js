@@ -325,3 +325,97 @@ ${prompt}
 
     // A conversão das imagens e a chamada à API
     // serão concluídas na Parte 4.
+    // Converter imagem principal
+    function convertDataUrl(dataUrl, filename) {
+      const matches = dataUrl.match(
+        /^data:(image\/(?:jpeg|png|webp));base64,([\s\S]+)$/i
+      );
+
+      if (!matches) {
+        throw new Error("Formato de imagem inválido.");
+      }
+
+      const mimeType = matches[1].toLowerCase();
+      const base64Data = matches[2];
+
+      const extension = mimeType.split("/")[1] === "jpeg"
+        ? "jpg"
+        : mimeType.split("/")[1];
+
+      return toFile(
+        Buffer.from(base64Data, "base64"),
+        `${filename}.${extension}`,
+        { type: mimeType }
+      );
+    }
+
+    const imageFile = await convertDataUrl(
+      image,
+      "fotografia-principal"
+    );
+
+    // Converter imagem de referência, se existir
+    let referenceFile = null;
+
+    if (referenceImage) {
+      referenceFile = await convertDataUrl(
+        referenceImage,
+        "referencia-visual"
+      );
+    }
+
+    // Converter máscara, se existir
+    let maskFile = null;
+
+    if (mask) {
+      if (
+        typeof mask !== "string" ||
+        !/^data:image\/(png);base64,/i.test(mask)
+      ) {
+        return res.status(400).json({
+          error: "A máscara deve estar no formato PNG."
+        });
+      }
+
+      maskFile = await convertDataUrl(mask, "mascara");
+    }
+
+    // Enviar para a OpenAI
+    const result = await openai.images.edit({
+      model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
+      image: referenceFile
+        ? [imageFile, referenceFile]
+        : imageFile,
+      ...(maskFile ? { mask: maskFile } : {}),
+      prompt: finalPrompt,
+      quality: "medium",
+      output_format: "png",
+      n: 1
+    });
+
+    const generatedImage = result.data?.[0]?.b64_json;
+
+    if (!generatedImage) {
+      throw new Error("A API não retornou a imagem editada.");
+    }
+
+    res.json({
+      image: `data:image/png;base64,${generatedImage}`,
+      message: "Imagem editada com sucesso."
+    });
+
+  } catch (error) {
+    console.error("Erro ao editar imagem:", error);
+
+    res.status(500).json({
+      error: "Não foi possível editar a fotografia.",
+      details: error.message
+    });
+  }
+});
+
+
+// Iniciar servidor
+app.listen(PORT, () => {
+  console.log(`Studio Foto IA rodando na porta ${PORT}`);
+});
