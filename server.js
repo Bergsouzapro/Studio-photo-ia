@@ -131,3 +131,157 @@ app.post("/api/generate-prompt", authenticate, async (req, res) => {
         error: "Informe uma ideia válida, com até 5000 caracteres."
       });
     }
+    const response = await openai.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5.5",
+
+      instructions: `
+Você é o diretor criativo do Studio Foto IA.
+
+Sua especialidade é fotografia realista,
+direção fotográfica e engenharia de prompts.
+
+Crie prompts detalhados, modernos e profissionais.
+
+PRIORIDADES:
+- Aparência de fotografia verdadeira.
+- Texturas naturais de pele.
+- Iluminação fisicamente plausível.
+- Cores naturais e equilibradas.
+- Evitar aparência artificial de inteligência artificial.
+- Evitar pele excessivamente lisa.
+- Evitar nitidez exagerada.
+- Preservar identidade e características físicas.
+
+Nunca invente características pessoais não informadas.
+
+Responda em português brasileiro.
+
+Entregue:
+1. Conceito fotográfico.
+2. Direção de cenário e composição.
+3. Iluminação.
+4. Enquadramento e câmera.
+5. Prompt final completo.
+6. Recomendações de uso.
+
+Não gere imagens. Produza somente texto.
+      `,
+
+      input: `
+Módulo: ${module || "fotografia"}
+Estilo: ${style || "a definir"}
+Formato: ${format || "a definir"}
+
+IDEIA DO USUÁRIO:
+${idea}
+      `
+    });
+
+    return res.json({
+      success: true,
+      prompt: response.output_text
+    });
+
+  } catch (error) {
+    console.error("Erro ao gerar prompt:", error.message);
+
+    return res.status(500).json({
+      error: "Não foi possível preparar o prompt."
+    });
+  }
+});
+
+// Analisar fotografia
+app.post("/api/analyze-image", authenticate, async (req, res) => {
+  try {
+    const {
+      image,
+      module,
+      objective
+    } = req.body;
+
+    if (
+      typeof image !== "string" ||
+      !/^data:image\/(jpeg|png|webp);base64,/i.test(image)
+    ) {
+      return res.status(400).json({
+        error: "Fotografia inválida. Utilize JPG, PNG ou WEBP."
+      });
+    }
+
+    if (image.length > 12 * 1024 * 1024) {
+      return res.status(413).json({
+        error: "Fotografia muito grande. Reduza o tamanho."
+      });
+    }
+
+    const response = await openai.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-5.5",
+
+      instructions: `
+Você é um diretor de fotografia especializado
+em análise visual e fotografia realista.
+
+Analise a fotografia enviada.
+
+Observe:
+- Cenário e ambiente.
+- Pose e postura.
+- Vestuário.
+- Iluminação.
+- Enquadramento.
+- Composição.
+- Qualidade técnica.
+- Oportunidades de melhoria.
+
+Se for uma fotografia pessoal, priorize
+a preservação da identidade e da aparência real.
+
+Não afirme características que não possam
+ser observadas na imagem.
+
+Apresente sugestões práticas e específicas.
+
+Prepare um prompt profissional para o objetivo
+solicitado.
+
+Não gere imagens. Responda somente com texto.
+      `,
+
+      input: [{
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: `
+Módulo: ${module || "análise de referência"}
+
+Objetivo: ${objective || "Analisar e sugerir melhorias."}
+
+Analise a fotografia e apresente três possibilidades
+de melhoria, priorizando a naturalidade.
+Prepare também o melhor prompt recomendado.
+            `
+          },
+          {
+            type: "input_image",
+            image_url: image,
+            detail: "high"
+          }
+        ]
+      }]
+    });
+
+    return res.json({
+      success: true,
+      analysis: response.output_text
+    });
+
+  } catch (error) {
+    console.error("Erro na análise:", error.message);
+
+    return res.status(500).json({
+      error: "Não foi possível analisar a fotografia."
+    });
+  }
+});
