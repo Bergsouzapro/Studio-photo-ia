@@ -1,4 +1,144 @@
-require("dotenv").config();
+      creative: `
+NÍVEL DE EDIÇÃO: CRIATIVO — IDENTIDADE PROTEGIDA
+
+OBJETIVO:
+- Realize as mudanças de cenário e ambiente solicitadas pelo usuário.
+- Substitua completamente o fundo quando o usuário pedir outro cenário.
+- Preserve a pessoa original como elemento principal da fotografia.
+
+PROTEÇÃO DA IDENTIDADE — PRIORIDADE MÁXIMA:
+- Trate a pessoa da fotografia original como um elemento que deve permanecer visualmente inalterado.
+- Preserve rigorosamente o rosto original.
+- Não redesenhe, reinterprete, embeleze ou modifique os traços faciais.
+- Mantenha exatamente o formato do rosto, olhos, sobrancelhas, nariz, boca, queixo e mandíbula.
+- Preserve expressão, idade aparente, textura da pele e características individuais.
+- Não afine o rosto, não altere o corpo e não modifique as proporções físicas.
+- Não substitua a pessoa por outra pessoa semelhante.
+- Não invente detalhes físicos.
+
+ALTERAÇÃO DO CENÁRIO:
+- Concentre as mudanças no fundo e no ambiente.
+- Preserve pose, roupa e enquadramento da pessoa.
+- Não altere a posição ou o tamanho da pessoa na fotografia.
+- Integre o novo cenário com iluminação, sombras e perspectiva naturais.
+
+ACABAMENTO:
+- Aparência de fotografia profissional real.
+- Textura natural da pele.
+- Cores equilibradas e iluminação coerente.
+- Evite aparência artificial, filtros exagerados ou efeito de montagem.
+      `
+    };
+
+    // Identificar formato da imagem
+    const match = image.match(
+      /^data:(image\/(?:jpeg|png|webp));base64,/i
+    );
+
+    const mime = match[1];
+
+    const extension =
+      mime === "image/jpeg" ? "jpg" :
+      mime === "image/webp" ? "webp" : "png";
+
+    // Converter Base64 em arquivo
+    const base64 = image.replace(
+      /^data:image\/(?:jpeg|png|webp);base64,/i,
+      ""
+    );
+
+    const imageBuffer = Buffer.from(base64, "base64");
+
+    const imageFile = await toFile(
+      imageBuffer,
+      `fotografia.${extension}`,
+      { type: mime }
+    );
+
+    // Preparar máscara opcional de proteção
+    let maskFile = undefined;
+
+    if (mask) {
+      if (
+        typeof mask !== "string" ||
+        !/^data:image\/png;base64,/i.test(mask)
+      ) {
+        return res.status(400).json({
+          error: "A máscara deve ser um PNG válido."
+        });
+      }
+
+      const maskBase64 = mask.replace(
+        /^data:image\/png;base64,/i,
+        ""
+      );
+
+      const maskBuffer = Buffer.from(maskBase64, "base64");
+
+      if (maskBuffer.length > 4 * 1024 * 1024) {
+        return res.status(413).json({
+          error: "A máscara ultrapassa o limite de 4 MB."
+        });
+      }
+
+      maskFile = await toFile(
+        maskBuffer,
+        "protecao.png",
+        { type: "image/png" }
+      );
+    }
+
+    // Solicitar edição à OpenAI
+    const result = await openai.images.edit({
+      model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst",
+      image: imageFile,
+      ...(maskFile ? { mask: maskFile } : {}),
+      prompt: `
+Edite a fotografia original seguindo estas instruções do usuário:
+
+${prompt}
+
+${intensityInstructions[selectedIntensity]}
+
+REGRAS GERAIS:
+- A fotografia enviada é a referência visual principal.
+- Não substitua a pessoa por outra pessoa.
+- Não crie uma nova composição quando uma correção localizada for suficiente.
+- Preserve os elementos que o usuário não pediu para modificar.
+- Entregue uma fotografia realista, sem texto, molduras ou marcas d'água adicionadas.
+      `,
+
+      quality: "medium",
+      output_format: "png",
+      n: 1
+    });
+
+    const editedImage = result.data?.[0]?.b64_json;
+
+    if (!editedImage) {
+      throw new Error("A OpenAI não retornou a imagem editada.");
+    }
+
+    return res.json({
+      success: true,
+      intensity: selectedIntensity,
+      image: `data:image/png;base64,${editedImage}`,
+      message: "Fotografia editada com sucesso."
+    });
+
+  } catch (error) {
+    console.error("Erro ao editar fotografia:", error.message);
+
+    return res.status(500).json({
+      error: "Não foi possível editar a fotografia. Tente novamente."
+    });
+  }
+});
+
+// Inicialização do servidor
+app.listen(PORT, () => {
+  console.log(`Studio Foto IA ativo na porta ${PORT}`);
+});require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
@@ -102,6 +242,7 @@ async function authenticate(req, res, next) {
     });
   }
 }
+
 // Verificar funcionamento
 app.get("/health", (req, res) => {
   res.json({
@@ -130,7 +271,6 @@ app.post("/api/generate-prompt", authenticate, async (req, res) => {
         error: "Informe uma ideia válida, com até 5000 caracteres."
       });
     }
-
     const response = await openai.responses.create({
       model: process.env.OPENAI_MODEL || "gpt-5.5",
 
@@ -190,6 +330,7 @@ ${idea}
     });
   }
 });
+
 // Analisar fotografia
 app.post("/api/analyze-image", authenticate, async (req, res) => {
   try {
@@ -287,7 +428,7 @@ Prepare também o melhor prompt recomendado.
 // EDITAR FOTOGRAFIA COM IA
 app.post("/api/edit-image", authenticate, async (req, res) => {
   try {
-   const { image, prompt, intensity, mask } = req.body;
+    const { image, prompt, intensity, mask } = req.body;
 
     if (
       typeof image !== "string" ||
@@ -314,18 +455,49 @@ app.post("/api/edit-image", authenticate, async (req, res) => {
       });
     }
 
-    // Natural é o padrão
+    // Intensidades disponíveis
     const validIntensities = [
       "natural",
       "professional",
-      "creative"
+      "creative",
+      "identity"
     ];
 
     const selectedIntensity = validIntensities.includes(intensity)
       ? intensity
       : "natural";
 
+    // Instruções específicas de cada modo
     const intensityInstructions = {
+      identity: `
+MODO: PRESERVAÇÃO DE IDENTIDADE — PRIORIDADE MÁXIMA
+
+OBJETIVO:
+- Faça somente as alterações solicitadas pelo usuário.
+- Preserve a pessoa da fotografia original como referência visual obrigatória.
+- Quando o usuário pedir mudança de cenário, concentre a edição no fundo e no ambiente.
+
+PRESERVAÇÃO DA PESSOA:
+- Preserve a identidade e os traços faciais da pessoa original.
+- Não redesenhe, reinterprete, embeleze ou substitua o rosto.
+- Mantenha formato do rosto, olhos, sobrancelhas, nariz, boca, queixo e mandíbula.
+- Preserve idade aparente, expressão, cabelo, linha do cabelo, tom e textura natural da pele.
+- Não afine, aumente ou reduza o rosto ou o corpo.
+- Preserve proporções físicas, pose, roupa e posição da pessoa.
+- Não invente características físicas nem transforme a pessoa em alguém apenas semelhante.
+
+ALTERAÇÕES DE CENÁRIO:
+- Se for solicitado outro ambiente, substitua o fundo de forma clara e coerente.
+- Não mantenha o cenário original quando o pedido exigir sua substituição.
+- Integre a pessoa ao novo ambiente com perspectiva, iluminação e sombras naturais.
+- Não altere a pessoa para adaptar o cenário; adapte o cenário à pessoa.
+
+RESULTADO:
+- Aparência de fotografia real, sem aspecto de montagem.
+- Preserve detalhes naturais e textura da pele.
+- Não adicione textos, molduras ou marcas d'água.
+      `,
+
       natural: `
 NÍVEL DE EDIÇÃO: NATURAL (PRESERVAÇÃO MÁXIMA)
 - Trate a imagem como uma fotografia real que precisa de correções discretas.
@@ -347,140 +519,3 @@ NÍVEL DE EDIÇÃO: PROFISSIONAL
 - Não altere traços faciais, corpo, pose ou vestuário, salvo pedido explícito.
 - Evite filtros exagerados e aparência artificial.
       `,
-
-      creative: `
-NÍVEL DE EDIÇÃO: CRIATIVO — IDENTIDADE PROTEGIDA
-
-OBJETIVO:
-- Realize as mudanças de cenário e ambiente solicitadas pelo usuário.
-- Substitua completamente o fundo quando o usuário pedir outro cenário.
-- Preserve a pessoa original como elemento principal da fotografia.
-PROTEÇÃO DA IDENTIDADE — PRIORIDADE MÁXIMA:
-- Trate a pessoa da fotografia original como um elemento que deve permanecer visualmente inalterado.
-- Preserve rigorosamente o rosto original.
-- Não redesenhe, reinterprete, embeleze ou modifique os traços faciais.
-- Mantenha exatamente o formato do rosto, olhos, sobrancelhas, nariz, boca, queixo e mandíbula.
-- Preserve expressão, idade aparente, textura da pele e características individuais.
-- Não afine o rosto, não altere o corpo e não modifique as proporções físicas.
-- Não substitua a pessoa por outra pessoa semelhante.
-- Não invente detalhes físicos.
-ALTERAÇÃO DO CENÁRIO:
-- Concentre as mudanças no fundo e no ambiente.
-- Preserve pose, roupa e enquadramento da pessoa.
-- Não altere a posição ou o tamanho da pessoa na fotografia.
-- Integre o novo cenário com iluminação, sombras e perspectiva naturais.
-ACABAMENTO:
-- Aparência de fotografia profissional real.
-- Textura natural da pele.
-- Cores equilibradas e iluminação coerente.
-- Evite aparência artificial, filtros exagerados ou efeito de montagem.
-  `
-    };
-
-    // Identificar formato da imagem
-    const match = image.match(
-      /^data:(image\/(?:jpeg|png|webp));base64,/i
-    );
-
-    const mime = match[1];
-
-    const extension =
-      mime === "image/jpeg" ? "jpg" :
-      mime === "image/webp" ? "webp" : "png";
-
-    // Converter Base64 em arquivo
-    const base64 = image.replace(
-      /^data:image\/(?:jpeg|png|webp);base64,/i,
-      ""
-    );
-
-    const imageBuffer = Buffer.from(base64, "base64");
-
-    const imageFile = await toFile(
-      imageBuffer,
-      `fotografia.${extension}`,
-      { type: mime }
-    );
-// Preparar máscara opcional de proteção
-let maskFile = undefined;
-
-if (mask) {
-  if (
-    typeof mask !== "string" ||
-    !/^data:image\/png;base64,/i.test(mask)
-  ) {
-    return res.status(400).json({
-      error: "A máscara deve ser um PNG válido."
-    });
-  }
-
-  const maskBase64 = mask.replace(
-    /^data:image\/png;base64,/i,
-    ""
-  );
-
-  const maskBuffer = Buffer.from(maskBase64, "base64");
-
-  if (maskBuffer.length > 4 * 1024 * 1024) {
-    return res.status(413).json({
-      error: "A máscara ultrapassa o limite de 4 MB."
-    });
-  }
-
-  maskFile = await toFile(
-    maskBuffer,
-    "protecao.png",
-    { type: "image/png" }
-  );
-}
-    // Solicitar edição à OpenAI
-    const result = await openai.images.edit({
-      model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst",
-      image: imageFile,
-...(maskFile ? { mask: maskFile } : {}),
-      prompt: `
-Edite a fotografia original seguindo estas instruções do usuário:
-
-${prompt}
-
-${intensityInstructions[selectedIntensity]}
-
-REGRAS GERAIS:
-- A fotografia enviada é a referência visual principal.
-- Não substitua a pessoa por outra pessoa.
-- Não crie uma nova composição quando uma correção localizada for suficiente.
-- Preserve os elementos que o usuário não pediu para modificar.
-- Entregue uma fotografia realista, sem texto, molduras ou marcas d'água adicionadas.
-      `,
-
-      quality: "medium",
-      output_format: "png",
-      n: 1
-    });
-
-    const editedImage = result.data?.[0]?.b64_json;
-
-    if (!editedImage) {
-      throw new Error("A OpenAI não retornou a imagem editada.");
-    }
-
-    return res.json({
-      success: true,
-      intensity: selectedIntensity,
-      image: `data:image/png;base64,${editedImage}`,
-      message: "Fotografia editada com sucesso."
-    });
-
-  } catch (error) {
-    console.error("Erro ao editar fotografia:", error.message);
-
-    return res.status(500).json({
-      error: "Não foi possível editar a fotografia. Tente novamente."
-    });
-  }
-});
-
-// Inicialização do servidor
-app.listen(PORT, () => {
-  console.log(`Studio Foto IA ativo na porta ${PORT}`);
-});
