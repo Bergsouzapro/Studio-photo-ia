@@ -90,7 +90,35 @@ const modules={
 };
 let selectedModule='fotografia',supabaseClient=null,currentSession=null,lastOutput='';
 const $=id=>document.getElementById(id);
-function showNotice(id,msg,error=false){const el=$(id);el.textContent=msg;el.classList.toggle('error',error);el.style.display='block'}
+// Referência visual do Pinterest
+let referenceImageData = null;
+
+$('referenceInput').addEventListener('change', event => {
+  const file = event.target.files[0];
+
+  if (!file) {
+    referenceImageData = null;
+    $('referencePreview').removeAttribute('src');
+    return;
+  }
+
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    alert('Selecione uma imagem JPG, PNG ou WEBP.');
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    referenceImageData = reader.result;
+    $('referencePreview').src = referenceImageData;
+    $('referencePreview').style.display = 'block';
+  };
+
+  reader.readAsDataURL(file);
+});
+ function showNotice(id,msg,error=false){const el=$(id);el.textContent=msg;el.classList.toggle('error',error);el.style.display='block'}
 function hideNotice(id){$(id).style.display='none'}
 function setBusy(busy){$('createBtn').disabled=busy;$('createBtn').textContent=busy?'Processando...':(selectedModule==='laboratorio'?'Editar fotografia':selectedModule==='referencia'?'Analisar fotografia':'Preparar meu prompt')}
 function getAnon(){return localStorage.getItem('studio_supabase_anon')||''}
