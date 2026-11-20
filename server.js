@@ -382,7 +382,7 @@ ${prompt}
 
     // Enviar para a OpenAI
     const result = await openai.images.edit({
-      model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1",
+    model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2.5-sunburst",
       image: referenceFile
         ? [imageFile, referenceFile]
         : imageFile,
