@@ -336,6 +336,7 @@ Reproduza o estilo visual solicitado mantendo a pessoa
 da primeira fotografia reconhecível e fiel à original.
 `
       : "";
+const finalPrompt = `
 ${selectedIntensity}
 
 ${referenceInstructions}
